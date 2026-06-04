@@ -1,0 +1,33 @@
+{
+  "id": "subagent-launch-notice",
+  "name": "Subagent Launch Notice",
+  "description": "Sends a short visible message to the requester route when a subagent is spawned.",
+  "activation": {
+    "onStartup": true
+  },
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "message": {
+        "type": "string",
+        "description": "Message sent when a subagent is launched."
+      },
+      "channels": {
+        "type": "array",
+        "items": { "type": "string" },
+        "description": "Channel ids where launch notices are enabled. Defaults to Discord only."
+      },
+      "silent": {
+        "type": "boolean",
+        "description": "Send the notice silently when the channel supports it.",
+        "default": true
+      },
+      "includeNested": {
+        "type": "boolean",
+        "description": "Also notify when a subagent spawns another subagent.",
+        "default": false
+      }
+    }
+  }
+}
