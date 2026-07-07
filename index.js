@@ -22,6 +22,24 @@ function normalizeChannel(value) {
   return normalizeString(value).toLowerCase();
 }
 
+function shortId(value, length = 8) {
+  const normalized = normalizeString(value);
+  return normalized ? normalized.slice(0, length) : "";
+}
+
+function placeholderValue(value) {
+  if (value === undefined || value === null) return "";
+  if (typeof value === "boolean") return value ? "true" : "false";
+  return String(value);
+}
+
+function renderTemplate(template, values) {
+  return normalizeString(template).replace(/\{([a-zA-Z0-9_.-]+)\}/g, (match, key) => {
+    if (!Object.prototype.hasOwnProperty.call(values, key)) return match;
+    return placeholderValue(values[key]);
+  });
+}
+
 function resolveConfig(api) {
   const cfg = asObject(api.pluginConfig);
   const channels = Array.isArray(cfg.channels)
@@ -193,6 +211,37 @@ function sendNotice({ channel, accountId, target, threadId, message, silent }) {
   }
 }
 
+function buildNoticeMessage(config, event, ctx, route) {
+  const agent = normalizeString(event.label) || normalizeString(event.agentId) || "subagent";
+  const childSessionKey = normalizeString(event.childSessionKey);
+  const requesterSessionKey = normalizeString(ctx?.requesterSessionKey);
+  const runId = normalizeString(event.runId);
+  const resolvedModel = normalizeString(event.resolvedModel);
+  const resolvedProvider = normalizeString(event.resolvedProvider);
+
+  return renderTemplate(config.message, {
+    agent,
+    agentId: normalizeString(event.agentId),
+    label: normalizeString(event.label),
+    mode: normalizeString(event.mode),
+    runId,
+    shortRunId: shortId(runId),
+    childSessionKey,
+    shortChildSessionKey: shortId(childSessionKey),
+    requesterSessionKey,
+    shortRequesterSessionKey: shortId(requesterSessionKey),
+    resolvedModel,
+    resolvedProvider,
+    model: resolvedModel,
+    provider: resolvedProvider,
+    threadRequested: event.threadRequested === true,
+    channel: normalizeString(route.channel),
+    accountId: normalizeString(route.accountId),
+    target: normalizeString(route.to),
+    threadId: route.threadId ?? "",
+  });
+}
+
 export default definePluginEntry({
   id: PLUGIN_ID,
   name: "Subagent Launch Notice",
@@ -207,6 +256,9 @@ export default definePluginEntry({
       if (!config.channels.has(channel) && !config.channels.has("*")) return;
       if (!config.includeNested && isNestedRequester(ctx)) return;
 
+      const message = buildNoticeMessage(config, event, ctx, route);
+      if (!message) return;
+
       const key = normalizeString(event.runId) || normalizeString(event.childSessionKey);
       if (!markSentOnce(key, event)) return;
 
@@ -215,7 +267,7 @@ export default definePluginEntry({
         accountId: normalizeString(route.accountId),
         target,
         threadId: route.threadId,
-        message: config.message,
+        message,
         silent: config.silent,
       });
     }, { timeoutMs: 1000 });

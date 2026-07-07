@@ -11,7 +11,7 @@
     "properties": {
       "message": {
         "type": "string",
-        "description": "Message sent when a subagent is launched."
+        "description": "Message template sent when a subagent is launched. Supports placeholders: {agent}, {agentId}, {label}, {mode}, {runId}, {shortRunId}, {childSessionKey}, {shortChildSessionKey}, {resolvedModel}, {resolvedProvider}, {threadRequested}, {channel}, {target}, {threadId}."
       },
       "channels": {
         "type": "array",

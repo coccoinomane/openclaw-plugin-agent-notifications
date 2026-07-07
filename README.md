@@ -35,3 +35,26 @@ openclaw plugins install git:github.com/coccoinomane/openclaw-plugin-agent-notif
 - `channels`: channel ids where launch notices are enabled. Defaults to `["discord"]`.
 - `silent`: send the notice silently when supported. Defaults to `true`.
 - `includeNested`: also notify when a sub-agent spawns another sub-agent. Defaults to `false`.
+
+`message` is a small template. Supported placeholders:
+
+- `{agent}`: `label` when present, otherwise `agentId`.
+- `{agentId}`
+- `{label}`
+- `{mode}`: `run` or `session`.
+- `{runId}` / `{shortRunId}`
+- `{childSessionKey}` / `{shortChildSessionKey}`
+- `{resolvedModel}` / `{model}`
+- `{resolvedProvider}` / `{provider}`
+- `{threadRequested}`
+- `{channel}`
+- `{target}`
+- `{threadId}`
+
+Example:
+
+```json
+{
+  "message": "🦞 Sottoagente avviato: `{agent}`\nModello: `{resolvedModel}` · modalità: `{mode}` · run: `{shortRunId}`"
+}
+```
