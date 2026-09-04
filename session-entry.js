@@ -1,6 +1,10 @@
 import fs from "node:fs";
+import { createRequire } from "node:module";
 import os from "node:os";
 import path from "node:path";
+import { pathToFileURL } from "node:url";
+
+const require = createRequire(import.meta.url);
 
 function asObject(value) {
   return value && typeof value === "object" && !Array.isArray(value) ? value : {};
@@ -31,16 +35,17 @@ function readLegacySessionEntry(requesterSessionKey) {
 }
 
 async function loadDefaultRuntime() {
+  let runtimePath;
   try {
-    return await import("openclaw/plugin-sdk/session-store-runtime");
+    runtimePath = require.resolve("openclaw/plugin-sdk/session-store-runtime");
   } catch (error) {
     const message = String(error?.message || error);
-    if (error?.code === "ERR_MODULE_NOT_FOUND" && (
-      message.includes("Cannot find package 'openclaw'") || message.includes("session-store-runtime")
+    if (error?.code === "ERR_PACKAGE_PATH_NOT_EXPORTED" || (
+      error?.code === "MODULE_NOT_FOUND" && message.includes("openclaw/plugin-sdk/session-store-runtime")
     )) return null;
-    if (error?.code === "ERR_PACKAGE_PATH_NOT_EXPORTED") return null;
     throw error;
   }
+  return await import(pathToFileURL(runtimePath).href);
 }
 
 export function createSessionEntryReader({ loadRuntime = loadDefaultRuntime, legacyReader = readLegacySessionEntry, logger = console } = {}) {
