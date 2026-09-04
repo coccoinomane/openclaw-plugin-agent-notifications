@@ -1,5 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { createSessionEntryReader } from "../session-entry.js";
 
 test("requester session reader prefers hook-provided entry", async () => {
@@ -45,6 +48,28 @@ test("requester session reader uses legacy files only when helper is unavailable
 
   assert.deepEqual(result, { entry: { key: "agent:main:discord:channel:123" }, source: "legacy" });
   assert.equal(legacyCalls, 1);
+});
+
+test("legacy compatibility reads a nonempty sessions.json fixture on a host without the helper", async () => {
+  const stateDir = mkdtempSync(join(tmpdir(), "agent-notifications-legacy-"));
+  const sessionKey = "agent:main:discord:channel:123";
+  const sessionsDir = join(stateDir, "agents", "main", "sessions");
+  mkdirSync(sessionsDir, { recursive: true });
+  writeFileSync(join(sessionsDir, "sessions.json"), JSON.stringify({ sessions: { [sessionKey]: { lastChannel: "discord" } } }));
+  const previousStateDir = process.env.OPENCLAW_STATE_DIR;
+  delete process.env.OPENCLAW_STATE_DIR;
+  const previousHome = process.env.OPENCLAW_HOME;
+  process.env.OPENCLAW_HOME = stateDir;
+  try {
+    const result = await createSessionEntryReader({ loadRuntime: async () => null }).read({ sessionKey, ctx: {} });
+    assert.deepEqual(result, { entry: { lastChannel: "discord" }, source: "legacy" });
+  } finally {
+    if (previousStateDir === undefined) delete process.env.OPENCLAW_STATE_DIR;
+    else process.env.OPENCLAW_STATE_DIR = previousStateDir;
+    if (previousHome === undefined) delete process.env.OPENCLAW_HOME;
+    else process.env.OPENCLAW_HOME = previousHome;
+    rmSync(stateDir, { recursive: true, force: true });
+  }
 });
 
 test("requester session reader does not resurrect legacy data after helper errors or empty reads", async () => {
