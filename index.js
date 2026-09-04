@@ -3,6 +3,7 @@ import os from "node:os";
 import path from "node:path";
 import { spawn } from "node:child_process";
 import { definePluginEntry } from "openclaw/plugin-sdk/plugin-entry";
+import { sessionEntryReader } from "./session-entry.js";
 
 const PLUGIN_ID = "subagent-launch-notice";
 const DEFAULT_MESSAGE = "🦞 È stato lanciato un sottoagente: ci metterà un po’. Ti aggiorno appena ha finito.";
@@ -120,27 +121,10 @@ function isNestedRequester(ctx) {
   return requesterSessionKey.includes(":subagent:");
 }
 
-function parseRequesterAgentId(requesterSessionKey) {
-  const parts = normalizeString(requesterSessionKey).split(":");
-  return parts[0] === "agent" && parts[1] ? parts[1] : "";
-}
-
-function readRequesterSession(requesterSessionKey) {
-  const agentId = parseRequesterAgentId(requesterSessionKey);
-  if (!agentId) return {};
-
-  try {
-    const sessionsPath = path.join(os.homedir(), ".openclaw", "agents", agentId, "sessions", "sessions.json");
-    const parsed = JSON.parse(fs.readFileSync(sessionsPath, "utf-8"));
-    return asObject(asObject(parsed.sessions)[requesterSessionKey] ?? asObject(parsed)[requesterSessionKey]);
-  } catch {
-    return {};
-  }
-}
-
-function resolveRequesterRoute(event, ctx) {
+async function resolveRequesterRoute(event, ctx) {
   const direct = asObject(event.requester);
-  const session = readRequesterSession(ctx?.requesterSessionKey);
+  const { entry } = await sessionEntryReader.read({ sessionKey: ctx?.requesterSessionKey, ctx });
+  const session = asObject(entry);
   const deliveryContext = asObject(session.deliveryContext);
   const origin = asObject(session.origin);
   const route = asObject(session.route);
@@ -249,7 +233,7 @@ export default definePluginEntry({
   register(api) {
     api.on("subagent_spawned", async (event, ctx) => {
       const config = resolveConfig(api);
-      const route = resolveRequesterRoute(event, ctx);
+      const route = await resolveRequesterRoute(event, ctx);
       const channel = normalizeChannel(route.channel);
       const target = normalizeString(route.to);
       if (!channel || !target) return;

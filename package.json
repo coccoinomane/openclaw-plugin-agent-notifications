@@ -1,10 +1,18 @@
 {
   "name": "openclaw-plugin-agent-notifications",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "private": true,
   "description": "Send a visible notice when a subagent is launched.",
   "type": "module",
   "main": "index.js",
+  "files": [
+    "index.js",
+    "session-entry.js",
+    "openclaw.plugin.json"
+  ],
+  "scripts": {
+    "test": "node --test"
+  },
   "openclaw": {
     "extensions": [
       "./index.js"

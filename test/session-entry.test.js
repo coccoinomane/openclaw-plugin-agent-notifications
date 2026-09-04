@@ -1,0 +1,83 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import { createSessionEntryReader } from "../session-entry.js";
+
+test("requester session reader prefers hook-provided entry", async () => {
+  let runtimeCalls = 0;
+  const reader = createSessionEntryReader({
+    loadRuntime: async () => { runtimeCalls += 1; return { getSessionEntry: () => ({ bad: true }) }; },
+    legacyReader: () => ({ bad: true }),
+  });
+
+  const result = await reader.read({
+    sessionKey: "agent:main:discord:channel:123",
+    ctx: { sessionEntry: { lastChannel: "discord", lastTo: "123" } },
+  });
+
+  assert.deepEqual(result, { entry: { lastChannel: "discord", lastTo: "123" }, source: "hook" });
+  assert.equal(runtimeCalls, 0);
+});
+
+test("requester session reader uses the canonical helper with session identity", async () => {
+  let received;
+  let legacyCalls = 0;
+  const reader = createSessionEntryReader({
+    loadRuntime: async () => ({ getSessionEntry: (params) => { received = params; return { lastChannel: "discord" }; } }),
+    legacyReader: () => { legacyCalls += 1; return { bad: true }; },
+  });
+
+  const result = await reader.read({ sessionKey: "agent:worker:discord:channel:123", ctx: {} });
+
+  assert.deepEqual(result, { entry: { lastChannel: "discord" }, source: "canonical" });
+  assert.equal(received.sessionKey, "agent:worker:discord:channel:123");
+  assert.equal(received.agentId, "worker");
+  assert.equal(legacyCalls, 0);
+});
+
+test("requester session reader uses legacy files only when helper is unavailable", async () => {
+  let legacyCalls = 0;
+  const reader = createSessionEntryReader({
+    loadRuntime: async () => ({}),
+    legacyReader: (sessionKey) => { legacyCalls += 1; return { key: sessionKey }; },
+  });
+
+  const result = await reader.read({ sessionKey: "agent:main:discord:channel:123", ctx: {} });
+
+  assert.deepEqual(result, { entry: { key: "agent:main:discord:channel:123" }, source: "legacy" });
+  assert.equal(legacyCalls, 1);
+});
+
+test("requester session reader does not resurrect legacy data after helper errors or empty reads", async () => {
+  let legacyCalls = 0;
+  const reader = createSessionEntryReader({
+    loadRuntime: async () => ({ getSessionEntry: () => { throw new Error("sqlite unavailable"); } }),
+    legacyReader: () => { legacyCalls += 1; return { stale: true }; },
+    logger: { error() {} },
+  });
+  const errorResult = await reader.read({ sessionKey: "agent:main:discord:channel:123", ctx: {} });
+  assert.equal(errorResult.source, "canonical-error");
+  assert.equal(errorResult.entry, null);
+
+  const emptyReader = createSessionEntryReader({
+    loadRuntime: async () => ({ getSessionEntry: () => undefined }),
+    legacyReader: () => { legacyCalls += 1; return { stale: true }; },
+  });
+  const emptyResult = await emptyReader.read({ sessionKey: "agent:main:discord:channel:123", ctx: {} });
+  assert.deepEqual(emptyResult, { entry: null, source: "canonical" });
+  assert.equal(legacyCalls, 0);
+});
+
+test("requester session reader fails closed when the runtime module itself errors", async () => {
+  let legacyCalls = 0;
+  const reader = createSessionEntryReader({
+    loadRuntime: async () => { throw new Error("broken runtime module"); },
+    legacyReader: () => { legacyCalls += 1; return { stale: true }; },
+    logger: { error() {} },
+  });
+
+  const result = await reader.read({ sessionKey: "agent:main:discord:channel:123", ctx: {} });
+
+  assert.equal(result.source, "runtime-error");
+  assert.equal(result.entry, null);
+  assert.equal(legacyCalls, 0);
+});
