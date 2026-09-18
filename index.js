@@ -4,6 +4,7 @@ import path from "node:path";
 import { spawn } from "node:child_process";
 import { definePluginEntry } from "openclaw/plugin-sdk/plugin-entry";
 import { sessionEntryReader } from "./session-entry.js";
+import { resolveRouteFromEntry } from "./requester-route.js";
 import { resolveVisibleSpawn } from "./visible-spawn.js";
 
 const PLUGIN_ID = "subagent-launch-notice";
@@ -126,42 +127,8 @@ function isNestedRequester(ctx) {
 }
 
 async function resolveRequesterRoute(event, ctx) {
-  const direct = asObject(event.requester);
   const { entry } = await sessionEntryReader.read({ sessionKey: ctx?.requesterSessionKey, ctx });
-  const session = asObject(entry);
-  const deliveryContext = asObject(session.deliveryContext);
-  const origin = asObject(session.origin);
-  const route = asObject(session.route);
-  const routeTarget = asObject(route.target);
-  const routeThread = asObject(route.thread);
-
-  return {
-    channel:
-      normalizeString(direct.channel) ||
-      normalizeString(deliveryContext.channel) ||
-      normalizeString(route.channel) ||
-      normalizeString(session.lastChannel) ||
-      normalizeString(origin.provider) ||
-      normalizeString(origin.surface),
-    accountId:
-      normalizeString(direct.accountId) ||
-      normalizeString(deliveryContext.accountId) ||
-      normalizeString(origin.accountId) ||
-      normalizeString(route.accountId) ||
-      normalizeString(session.lastAccountId),
-    to:
-      normalizeString(direct.to) ||
-      normalizeString(deliveryContext.to) ||
-      normalizeString(origin.to) ||
-      normalizeString(routeTarget.to) ||
-      normalizeString(session.lastTo),
-    threadId:
-      direct.threadId ??
-      deliveryContext.threadId ??
-      origin.threadId ??
-      routeThread.id ??
-      session.lastThreadId,
-  };
+  return resolveRouteFromEntry(event.requester, entry);
 }
 
 function sendNotice({ channel, accountId, target, threadId, message, silent }) {
