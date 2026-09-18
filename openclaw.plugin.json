@@ -16,7 +16,7 @@
       },
       "visibleMessage": {
         "type": "string",
-        "description": "Message template for visible spawns (sessions_spawn with visible: true), which create a dashboard session. Supports the same placeholders as message (except resolvedModel/resolvedProvider/threadRequested) plus {sessionUrl} and {ownerLabel}. Lines containing {sessionUrl} are dropped when the spawn result has no session URL."
+        "description": "Message template for visible spawns (sessions_spawn with visible: true), which create a dashboard session. Supports the same placeholders as message (except resolvedModel/resolvedProvider/threadRequested) plus {sessionUrl} and {ownerLabel}. Without a session URL, masked links [text](<{sessionUrl}>) collapse to their text and other lines containing {sessionUrl} are dropped."
       },
       "notifyVisible": {
         "type": "boolean",

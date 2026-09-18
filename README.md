@@ -70,8 +70,9 @@ and sends `visibleMessage` instead of `message`.
 
 Extra placeholders for `visibleMessage`:
 
-- `{sessionUrl}`: Control UI URL of the new session. Lines containing it are
-  dropped when the Control UI is disabled and no URL is returned.
+- `{sessionUrl}`: Control UI URL of the new session. When the Control UI is
+  disabled and no URL is returned, masked links `[text](<{sessionUrl}>)` collapse
+  to `text` and other lines containing it are dropped.
 - `{ownerLabel}`: label of the session owner.
 
 `{resolvedModel}`, `{resolvedProvider}` and `{threadRequested}` are not
@@ -79,6 +80,6 @@ available on this path. Default:
 
 ```json
 {
-  "visibleMessage": "🦞 Sottoagente avviato: `{agent}`\n-# [Segui la sessione](<{sessionUrl}>)"
+  "visibleMessage": "🦞 [Sottoagente avviato](<{sessionUrl}>): `{agent}`"
 }
 ```

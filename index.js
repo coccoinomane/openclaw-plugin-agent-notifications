@@ -5,11 +5,11 @@ import { spawn } from "node:child_process";
 import { definePluginEntry } from "openclaw/plugin-sdk/plugin-entry";
 import { sessionEntryReader } from "./session-entry.js";
 import { resolveRouteFromEntry } from "./requester-route.js";
-import { resolveVisibleSpawn } from "./visible-spawn.js";
+import { resolveVisibleSpawn, visibleTemplate } from "./visible-spawn.js";
 
 const PLUGIN_ID = "subagent-launch-notice";
 const DEFAULT_MESSAGE = "🦞 È stato lanciato un sottoagente: ci metterà un po’. Ti aggiorno appena ha finito.";
-const DEFAULT_VISIBLE_MESSAGE = "🦞 Sottoagente avviato: `{agent}`\n-# [Segui la sessione](<{sessionUrl}>)";
+const DEFAULT_VISIBLE_MESSAGE = "🦞 [Sottoagente avviato](<{sessionUrl}>): `{agent}`";
 const DEFAULT_CHANNELS = ["discord"];
 const STATE_MAX_ENTRIES = 2000;
 const STATE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
@@ -164,13 +164,6 @@ function sendNotice({ channel, accountId, target, threadId, message, silent }) {
   } catch (err) {
     console.error(`[${PLUGIN_ID}] message send spawn failed: ${String(err)}`);
   }
-}
-
-// Lines that depend on the session URL are dropped when the Control UI is
-// disabled and the spawn result carries no `sessionUrl`.
-function visibleTemplate(template, sessionUrl) {
-  if (sessionUrl) return template;
-  return template.split("\n").filter((line) => !line.includes("{sessionUrl}")).join("\n");
 }
 
 function buildNoticeMessage(config, event, ctx, route) {

@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { extractSpawnResult, resolveVisibleSpawn } from "../visible-spawn.js";
+import { extractSpawnResult, resolveVisibleSpawn, visibleTemplate } from "../visible-spawn.js";
 
 const accepted = {
   status: "accepted",
@@ -47,4 +47,10 @@ test("hidden, failed and rejected spawns are ignored", () => {
 test("task name is the label fallback", () => {
   const spawn = resolveVisibleSpawn({ params: { visible: true, taskName: "conteggio" }, result: accepted });
   assert.equal(spawn.label, "conteggio");
+});
+
+test("template without a session url keeps the link text and drops url-only lines", () => {
+  const template = "🦞 [Sottoagente avviato](<{sessionUrl}>): `{agent}`\n-# {sessionUrl}";
+  assert.equal(visibleTemplate(template, "https://example.test/x"), template);
+  assert.equal(visibleTemplate(template, ""), "🦞 Sottoagente avviato: `{agent}`");
 });

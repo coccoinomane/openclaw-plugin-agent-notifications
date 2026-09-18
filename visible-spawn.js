@@ -64,3 +64,14 @@ export function resolveVisibleSpawn(event) {
     ownerLabel: normalizeString(owner.label) || normalizeString(owner.id),
   };
 }
+
+// Without a session URL (Control UI disabled) masked links collapse to their
+// text and any line still depending on the URL is dropped.
+export function visibleTemplate(template, sessionUrl) {
+  if (sessionUrl) return template;
+  return String(template || "")
+    .replace(/\[([^\]]+)\]\(<?\{sessionUrl\}>?\)/g, "$1")
+    .split("\n")
+    .filter((line) => !line.includes("{sessionUrl}"))
+    .join("\n");
+}
