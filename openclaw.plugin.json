@@ -1,8 +1,8 @@
 {
   "id": "subagent-launch-notice",
   "name": "Subagent Launch Notice",
-  "description": "Sends a short visible message to the requester route when a subagent is spawned.",
-  "version": "0.1.2",
+  "description": "Sends a short visible message to the requester route when a subagent is spawned, including visible dashboard sessions.",
+  "version": "0.2.0",
   "activation": {
     "onStartup": true
   },
@@ -14,9 +14,20 @@
         "type": "string",
         "description": "Message template sent when a subagent is launched. Supports placeholders: {agent}, {agentId}, {label}, {mode}, {runId}, {shortRunId}, {childSessionKey}, {shortChildSessionKey}, {resolvedModel}, {resolvedProvider}, {threadRequested}, {channel}, {target}, {threadId}."
       },
+      "visibleMessage": {
+        "type": "string",
+        "description": "Message template for visible spawns (sessions_spawn with visible: true), which create a dashboard session. Supports the same placeholders as message (except resolvedModel/resolvedProvider/threadRequested) plus {sessionUrl} and {ownerLabel}. Lines containing {sessionUrl} are dropped when the spawn result has no session URL."
+      },
+      "notifyVisible": {
+        "type": "boolean",
+        "description": "Also notify for visible spawns, which do not emit subagent_spawned.",
+        "default": true
+      },
       "channels": {
         "type": "array",
-        "items": { "type": "string" },
+        "items": {
+          "type": "string"
+        },
         "description": "Channel ids where launch notices are enabled. Defaults to Discord only."
       },
       "silent": {

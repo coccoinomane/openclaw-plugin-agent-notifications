@@ -4,9 +4,11 @@ import path from "node:path";
 import { spawn } from "node:child_process";
 import { definePluginEntry } from "openclaw/plugin-sdk/plugin-entry";
 import { sessionEntryReader } from "./session-entry.js";
+import { resolveVisibleSpawn } from "./visible-spawn.js";
 
 const PLUGIN_ID = "subagent-launch-notice";
 const DEFAULT_MESSAGE = "🦞 È stato lanciato un sottoagente: ci metterà un po’. Ti aggiorno appena ha finito.";
+const DEFAULT_VISIBLE_MESSAGE = "🦞 Sottoagente avviato: `{agent}`\n-# [Segui la sessione](<{sessionUrl}>)";
 const DEFAULT_CHANNELS = ["discord"];
 const STATE_MAX_ENTRIES = 2000;
 const STATE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
@@ -49,6 +51,8 @@ function resolveConfig(api) {
 
   return {
     message: normalizeString(cfg.message) || DEFAULT_MESSAGE,
+    visibleMessage: normalizeString(cfg.visibleMessage) || DEFAULT_VISIBLE_MESSAGE,
+    notifyVisible: cfg.notifyVisible !== false,
     channels: new Set(channels.length ? channels : DEFAULT_CHANNELS),
     silent: cfg.silent !== false,
     includeNested: cfg.includeNested === true,
@@ -118,7 +122,7 @@ function markSentOnce(key, event) {
 
 function isNestedRequester(ctx) {
   const requesterSessionKey = normalizeString(ctx?.requesterSessionKey);
-  return requesterSessionKey.includes(":subagent:");
+  return requesterSessionKey.includes(":subagent:") || requesterSessionKey.includes(":dashboard:");
 }
 
 async function resolveRequesterRoute(event, ctx) {
@@ -195,6 +199,13 @@ function sendNotice({ channel, accountId, target, threadId, message, silent }) {
   }
 }
 
+// Lines that depend on the session URL are dropped when the Control UI is
+// disabled and the spawn result carries no `sessionUrl`.
+function visibleTemplate(template, sessionUrl) {
+  if (sessionUrl) return template;
+  return template.split("\n").filter((line) => !line.includes("{sessionUrl}")).join("\n");
+}
+
 function buildNoticeMessage(config, event, ctx, route) {
   const agent = normalizeString(event.label) || normalizeString(event.agentId) || "subagent";
   const childSessionKey = normalizeString(event.childSessionKey);
@@ -203,7 +214,10 @@ function buildNoticeMessage(config, event, ctx, route) {
   const resolvedModel = normalizeString(event.resolvedModel);
   const resolvedProvider = normalizeString(event.resolvedProvider);
 
-  return renderTemplate(config.message, {
+  const sessionUrl = normalizeString(event.sessionUrl);
+  const template = event.visible === true ? visibleTemplate(config.visibleMessage, sessionUrl) : config.message;
+
+  return renderTemplate(template, {
     agent,
     agentId: normalizeString(event.agentId),
     label: normalizeString(event.label),
@@ -219,6 +233,9 @@ function buildNoticeMessage(config, event, ctx, route) {
     model: resolvedModel,
     provider: resolvedProvider,
     threadRequested: event.threadRequested === true,
+    visible: event.visible === true,
+    sessionUrl,
+    ownerLabel: normalizeString(event.ownerLabel),
     channel: normalizeString(route.channel),
     accountId: normalizeString(route.accountId),
     target: normalizeString(route.to),
@@ -231,8 +248,9 @@ export default definePluginEntry({
   name: "Subagent Launch Notice",
   description: "Sends a short visible message to the requester route when a subagent is spawned.",
   register(api) {
-    api.on("subagent_spawned", async (event, ctx) => {
+    const notify = async (event, ctx) => {
       const config = resolveConfig(api);
+      if (event.visible === true && !config.notifyVisible) return;
       const route = await resolveRequesterRoute(event, ctx);
       const channel = normalizeChannel(route.channel);
       const target = normalizeString(route.to);
@@ -254,6 +272,18 @@ export default definePluginEntry({
         message,
         silent: config.silent,
       });
-    }, { timeoutMs: 1000 });
+    };
+
+    api.on("subagent_spawned", notify, { timeoutMs: 1000 });
+
+    // Visible spawns never emit `subagent_spawned`; observe the tool call instead.
+    api.on("after_tool_call", async (event, ctx) => {
+      const spawn = resolveVisibleSpawn(event);
+      if (!spawn) return;
+      await notify({ ...spawn, visible: true }, {
+        ...ctx,
+        requesterSessionKey: normalizeString(ctx?.requesterSessionKey) || normalizeString(ctx?.sessionKey),
+      });
+    }, { matcher: ["sessions_spawn"], timeoutMs: 1000 });
   },
 });
