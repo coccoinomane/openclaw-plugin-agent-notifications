@@ -83,3 +83,23 @@ available on this path. Default:
   "visibleMessage": "🦞 [Sottoagente avviato](<{sessionUrl}>): `{agent}`"
 }
 ```
+
+## What the plugin does not cover
+
+The notice is tied to a spawn. A parent turn that ends with `sessions_yield`
+sends nothing to the channel on its own: text the model writes between tool
+calls stays private, and OpenClaw logs `visible channel turn dispatched with no
+queued reply payloads`. When a spawn happened in that turn, this plugin's notice
+is what the user sees. When the agent yields *without* spawning in the same turn
+(for example while waiting for a child launched earlier), nothing is sent.
+
+To cover that case, and to avoid the agent duplicating the notice, add a rule to
+the agent's `AGENTS.md`, for example:
+
+```markdown
+- The `subagent-launch-notice` plugin announces sub-agent launches (including
+  `visible` ones, with the session link): do not repeat that notice yourself.
+  Pass `acknowledgment` to `sessions_yield` only when you end a turn from an
+  interactive channel without having spawned a sub-agent in that turn; one
+  concrete sentence, no generic "working on it" text.
+```
