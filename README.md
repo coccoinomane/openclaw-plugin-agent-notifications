@@ -64,19 +64,19 @@ Example:
 ## Visible spawns
 
 `sessions_spawn` with `visible: true` creates a persistent dashboard session
-through `sessions.create` and does not emit `subagent_spawned`. The plugin
-covers that path by observing `after_tool_call` for the `sessions_spawn` tool
-and sends `visibleMessage` instead of `message`.
+through `sessions.create` and does not emit `subagent_spawned`. For these
+spawns the plugin listens to `after_tool_call` on the `sessions_spawn` tool and
+sends `visibleMessage` instead of `message`.
 
 Extra placeholders for `visibleMessage`:
 
 - `{sessionUrl}`: Control UI URL of the new session. When the Control UI is
   disabled and no URL is returned, masked links `[text](<{sessionUrl}>)` collapse
-  to `text` and other lines containing it are dropped.
+  to `text` and any other line containing `{sessionUrl}` is dropped.
 - `{ownerLabel}`: label of the session owner.
 
-`{resolvedModel}`, `{resolvedProvider}` and `{threadRequested}` are not
-available on this path. Default:
+`{resolvedModel}`, `{resolvedProvider}` and `{threadRequested}` are empty for
+visible spawns, because the tool result does not include them. Default:
 
 ```json
 {
@@ -86,14 +86,15 @@ available on this path. Default:
 
 ## What the plugin does not cover
 
-The notice is tied to a spawn. A parent turn that ends with `sessions_yield`
-sends nothing to the channel on its own: text the model writes between tool
-calls stays private, and OpenClaw logs `visible channel turn dispatched with no
-queued reply payloads`. When a spawn happened in that turn, this plugin's notice
-is what the user sees. When the agent yields *without* spawning in the same turn
-(for example while waiting for a child launched earlier), nothing is sent.
+The plugin sends a notice only when a sub-agent is spawned. A parent turn that
+ends with `sessions_yield` sends nothing to the channel: text the model writes
+between tool calls stays private, and OpenClaw logs `visible channel turn
+dispatched with no queued reply payloads`. If a sub-agent was spawned in that
+turn, the user sees this plugin's notice. If the agent yields without spawning
+in the same turn, for example while waiting for a child launched earlier, the
+user sees nothing.
 
-To cover that case, and to avoid the agent duplicating the notice, add a rule to
+For that case, and to stop the agent from repeating the notice, add a rule to
 the agent's `AGENTS.md`, for example:
 
 ```markdown
