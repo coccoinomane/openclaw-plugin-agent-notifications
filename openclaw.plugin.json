@@ -2,7 +2,7 @@
   "id": "subagent-launch-notice",
   "name": "Subagent Launch Notice",
   "description": "Sends a short visible message to the requester route when a subagent is spawned, including visible dashboard sessions.",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "activation": {
     "onStartup": true
   },
