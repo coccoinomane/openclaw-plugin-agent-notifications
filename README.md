@@ -31,7 +31,7 @@ openclaw plugins install git:github.com/coccoinomane/openclaw-plugin-agent-notif
 
 ## Options
 
-- `message`: custom notice text.
+- `message`: custom notice text for ordinary subagents. A session link is appended automatically when available and not already present in the rendered message.
 - `visibleMessage`: notice text for visible spawns (see below).
 - `notifyVisible`: also notify for visible spawns. Defaults to `true`.
 - `channels`: channel ids where launch notices are enabled. Defaults to `["discord"]`.
@@ -52,6 +52,7 @@ openclaw plugins install git:github.com/coccoinomane/openclaw-plugin-agent-notif
 - `{channel}`
 - `{target}`
 - `{threadId}`
+- `{sessionUrl}`: authenticated Control UI URL of the child session, when available.
 
 Example:
 
@@ -60,6 +61,30 @@ Example:
   "message": "🦞 Sottoagente avviato: `{agent}`\nModello: `{resolvedModel}` · modalità: `{mode}` · run: `{shortRunId}`"
 }
 ```
+
+## Session links for ordinary subagents
+
+Ordinary `subagent_spawned` notices now link to the existing child session.
+Set `gateway.publicOrigin` to the Gateway's bare external HTTP(S) origin and
+keep the Control UI enabled. `gateway.controlUi.basePath` is respected. The
+plugin reads the current runtime config, so public-origin hot reloads do not
+require replacing the plugin instance.
+
+The link uses OpenClaw's canonical session-path SDK helper and the exact
+`childSessionKey`. It contains no Gateway credentials; the recipient still
+needs normal Gateway access. An ordinary subagent remains view-only and keeps
+its original lifetime/cleanup behavior: opening a link does not make it a
+persistent visible session. A link can become unavailable after cleanup.
+
+Existing `message` overrides, including the old plain-text notice, gain an
+`Apri sessione` link without a config migration. Templates may place
+`{sessionUrl}` themselves; the same rendered URL is not appended twice.
+If the public origin is absent, the Control UI is disabled, or the optional
+SDK helpers are unavailable, a useful text notice is still delivered.
+
+This is notification-only enrichment. The plugin does not change spawn
+parameters (`visible`, `mode`, `thread`, `cleanup`, or completion flags),
+create/update sessions, or change routing, filters, silence, or deduplication.
 
 ## Visible spawns
 
@@ -70,7 +95,7 @@ sends `visibleMessage` instead of `message`.
 
 Extra placeholders for `visibleMessage`:
 
-- `{sessionUrl}`: Control UI URL of the new session. When the Control UI is
+- `{sessionUrl}`: Control UI URL returned in the visible-spawn receipt. When the Control UI is
   disabled and no URL is returned, masked links `[text](<{sessionUrl}>)` collapse
   to `text` and any other line containing `{sessionUrl}` is dropped.
 - `{ownerLabel}`: label of the session owner.
@@ -83,6 +108,14 @@ visible spawns, because the tool result does not include them. Default:
   "visibleMessage": "🦞 [Sottoagente avviato](<{sessionUrl}>): `{agent}`"
 }
 ```
+
+## Tests
+
+`npm test` runs dependency-free unit and notifier regression tests. The two
+optional real-SDK checks are enabled by `OPENCLAW_SDK_INTEGRATION=1` when
+`openclaw` is resolvable from the checkout. They verify canonical cross-agent
+paths, reverse-proxy prefixes and unchanged hook registration without sending
+messages, creating sessions or writing Gateway config.
 
 ## What the plugin does not cover
 

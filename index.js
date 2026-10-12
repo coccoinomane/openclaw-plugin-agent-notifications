@@ -5,10 +5,11 @@ import { spawn } from "node:child_process";
 import { definePluginEntry } from "openclaw/plugin-sdk/plugin-entry";
 import { sessionEntryReader } from "./session-entry.js";
 import { resolveRouteFromEntry } from "./requester-route.js";
-import { resolveVisibleSpawn, visibleTemplate } from "./visible-spawn.js";
+import { resolveVisibleSpawn } from "./visible-spawn.js";
+import { DEFAULT_MESSAGE } from "./notice-message.js";
+import { createLaunchNotifier } from "./launch-notice.js";
 
 const PLUGIN_ID = "subagent-launch-notice";
-const DEFAULT_MESSAGE = "🦞 È stato lanciato un sottoagente: ci metterà un po’. Ti aggiorno appena ha finito.";
 const DEFAULT_VISIBLE_MESSAGE = "🦞 [Sottoagente avviato](<{sessionUrl}>): `{agent}`";
 const DEFAULT_CHANNELS = ["discord"];
 const STATE_MAX_ENTRIES = 2000;
@@ -24,24 +25,6 @@ function normalizeString(value) {
 
 function normalizeChannel(value) {
   return normalizeString(value).toLowerCase();
-}
-
-function shortId(value, length = 8) {
-  const normalized = normalizeString(value);
-  return normalized ? normalized.slice(0, length) : "";
-}
-
-function placeholderValue(value) {
-  if (value === undefined || value === null) return "";
-  if (typeof value === "boolean") return value ? "true" : "false";
-  return String(value);
-}
-
-function renderTemplate(template, values) {
-  return normalizeString(template).replace(/\{([a-zA-Z0-9_.-]+)\}/g, (match, key) => {
-    if (!Object.prototype.hasOwnProperty.call(values, key)) return match;
-    return placeholderValue(values[key]);
-  });
 }
 
 function resolveConfig(api) {
@@ -166,73 +149,14 @@ function sendNotice({ channel, accountId, target, threadId, message, silent }) {
   }
 }
 
-function buildNoticeMessage(config, event, ctx, route) {
-  const agent = normalizeString(event.label) || normalizeString(event.agentId) || "subagent";
-  const childSessionKey = normalizeString(event.childSessionKey);
-  const requesterSessionKey = normalizeString(ctx?.requesterSessionKey);
-  const runId = normalizeString(event.runId);
-  const resolvedModel = normalizeString(event.resolvedModel);
-  const resolvedProvider = normalizeString(event.resolvedProvider);
-
-  const sessionUrl = normalizeString(event.sessionUrl);
-  const template = event.visible === true ? visibleTemplate(config.visibleMessage, sessionUrl) : config.message;
-
-  return renderTemplate(template, {
-    agent,
-    agentId: normalizeString(event.agentId),
-    label: normalizeString(event.label),
-    mode: normalizeString(event.mode),
-    runId,
-    shortRunId: shortId(runId),
-    childSessionKey,
-    shortChildSessionKey: shortId(childSessionKey),
-    requesterSessionKey,
-    shortRequesterSessionKey: shortId(requesterSessionKey),
-    resolvedModel,
-    resolvedProvider,
-    model: resolvedModel,
-    provider: resolvedProvider,
-    threadRequested: event.threadRequested === true,
-    visible: event.visible === true,
-    sessionUrl,
-    ownerLabel: normalizeString(event.ownerLabel),
-    channel: normalizeString(route.channel),
-    accountId: normalizeString(route.accountId),
-    target: normalizeString(route.to),
-    threadId: route.threadId ?? "",
-  });
-}
-
 export default definePluginEntry({
   id: PLUGIN_ID,
   name: "Subagent Launch Notice",
   description: "Sends a short visible message to the requester route when a subagent is spawned.",
   register(api) {
-    const notify = async (event, ctx) => {
-      const config = resolveConfig(api);
-      if (event.visible === true && !config.notifyVisible) return;
-      const route = await resolveRequesterRoute(event, ctx);
-      const channel = normalizeChannel(route.channel);
-      const target = normalizeString(route.to);
-      if (!channel || !target) return;
-      if (!config.channels.has(channel) && !config.channels.has("*")) return;
-      if (!config.includeNested && isNestedRequester(ctx)) return;
-
-      const message = buildNoticeMessage(config, event, ctx, route);
-      if (!message) return;
-
-      const key = normalizeString(event.runId) || normalizeString(event.childSessionKey);
-      if (!markSentOnce(key, event)) return;
-
-      sendNotice({
-        channel,
-        accountId: normalizeString(route.accountId),
-        target,
-        threadId: route.threadId,
-        message,
-        silent: config.silent,
-      });
-    };
+    const notify = createLaunchNotifier(api, {
+      resolveConfig, resolveRequesterRoute, isNestedRequester, markSentOnce, sendNotice,
+    });
 
     api.on("subagent_spawned", notify, { timeoutMs: 1000 });
 
