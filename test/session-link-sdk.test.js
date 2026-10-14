@@ -1,11 +1,14 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { createRequire } from "node:module";
+import { pathToFileURL } from "node:url";
 import { createSessionLinkResolver } from "../session-link.js";
 
+const require = createRequire(import.meta.url);
 const enabled = process.env.OPENCLAW_SDK_INTEGRATION === "1";
 
 test("real OpenClaw SDK resolves exact cross-agent, prefixed and encoded session URLs", { skip: !enabled }, async () => {
-  const { buildControlUiSessionPath } = await import("openclaw/plugin-sdk/session-discussion");
+  const { buildControlUiSessionPath } = await import(pathToFileURL(require.resolve("openclaw/plugin-sdk/session-discussion")).href);
   const resolver = createSessionLinkResolver();
   const keys = [
     "agent:worker:subagent:12345678-1234-4321-8765-123456789012",

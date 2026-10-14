@@ -1,11 +1,20 @@
+import { createRequire } from "node:module";
+import { pathToFileURL } from "node:url";
+
+const require = createRequire(import.meta.url);
+
 function normalizeString(value) {
   return typeof value === "string" ? value.trim() : "";
 }
 
 async function loadDefaultSdk() {
+  // Resolve both subpaths before starting imports so a missing export cannot
+  // leave an earlier import rejection outside Promise.all's handlers.
+  const sessionsPath = require.resolve("openclaw/plugin-sdk/session-discussion");
+  const configPath = require.resolve("openclaw/plugin-sdk/config-contracts");
   const [sessions, config] = await Promise.all([
-    import("openclaw/plugin-sdk/session-discussion"),
-    import("openclaw/plugin-sdk/config-contracts"),
+    import(pathToFileURL(sessionsPath).href),
+    import(pathToFileURL(configPath).href),
   ]);
   return {
     buildControlUiSessionPath: sessions.buildControlUiSessionPath,
