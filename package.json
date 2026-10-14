@@ -9,6 +9,9 @@
     "index.js",
     "requester-route.js",
     "session-entry.js",
+    "session-link.js",
+    "notice-message.js",
+    "launch-notice.js",
     "visible-spawn.js",
     "openclaw.plugin.json"
   ],

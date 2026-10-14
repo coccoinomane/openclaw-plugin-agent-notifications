@@ -12,11 +12,11 @@
     "properties": {
       "message": {
         "type": "string",
-        "description": "Message template sent when a subagent is launched. Supports placeholders: {agent}, {agentId}, {label}, {mode}, {runId}, {shortRunId}, {childSessionKey}, {shortChildSessionKey}, {resolvedModel}, {resolvedProvider}, {threadRequested}, {channel}, {target}, {threadId}."
+        "description": "Message template for ordinary subagents. Supports {sessionUrl} in addition to the existing agent/model/run/routing placeholders. A session link is appended automatically when available and not already present. Missing URL or optional SDK helpers keep the notice text-only; spawn parameters are not changed."
       },
       "visibleMessage": {
         "type": "string",
-        "description": "Message template for visible spawns (sessions_spawn with visible: true), which create a dashboard session. Supports the same placeholders as message (except resolvedModel/resolvedProvider/threadRequested) plus {sessionUrl} and {ownerLabel}. Without a session URL, masked links [text](<{sessionUrl}>) collapse to their text and other lines containing {sessionUrl} are dropped."
+        "description": "Message template for visible spawns (sessions_spawn with visible: true), which create a dashboard session. Supports the same placeholders as message (except resolvedModel/resolvedProvider/threadRequested) plus {ownerLabel}. The {sessionUrl} returned by the host is preserved. Without a session URL, masked links [text](<{sessionUrl}>) collapse to their text and other lines containing {sessionUrl} are dropped."
       },
       "notifyVisible": {
         "type": "boolean",
