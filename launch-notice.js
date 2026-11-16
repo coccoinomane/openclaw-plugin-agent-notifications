@@ -5,6 +5,24 @@ function normalizeString(value) {
   return typeof value === "string" && value.trim() ? value.trim() : "";
 }
 
+export async function resolveAgentIdentity(api, event) {
+  const agentId = normalizeString(event.agentId)
+    || normalizeString(event.childSessionKey).match(/^agent:([^:]+):/)?.[1]
+    || "";
+  let config = api.config;
+  try {
+    if (typeof api.runtime?.config?.current === "function") {
+      config = await api.runtime.config.current();
+    }
+  } catch {}
+  const entries = config?.agents?.entries;
+  const entry = agentId && entries && Object.hasOwn(entries, agentId)
+    ? entries[agentId]
+    : config?.agents?.list?.find?.((item) => item?.id === agentId);
+  const agentName = normalizeString(entry?.name) || normalizeString(entry?.identity?.name);
+  return { agentId, agentName };
+}
+
 // Dependencies are injected for regression tests without invoking message send.
 export function createLaunchNotifier(api, {
   resolveConfig, resolveRequesterRoute, isNestedRequester, markSentOnce, sendNotice,
@@ -21,7 +39,8 @@ export function createLaunchNotifier(api, {
     if (!config.includeNested && isNestedRequester(ctx)) return;
 
     const sessionUrl = await resolveSessionLink(api, event);
-    const message = buildNoticeMessage(config, { ...event, sessionUrl }, ctx, route);
+    const identity = await resolveAgentIdentity(api, event);
+    const message = buildNoticeMessage(config, { ...event, ...identity, sessionUrl }, ctx, route);
     if (!message) return;
 
     const key = normalizeString(event.runId) || normalizeString(event.childSessionKey);

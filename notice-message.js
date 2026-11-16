@@ -29,6 +29,9 @@ function normalTemplate(template, sessionUrl) {
 
 export function buildNoticeMessage(config, event, ctx, route) {
   const agent = normalizeString(event.label) || normalizeString(event.agentId) || "subagent";
+  const agentName = normalizeString(event.agentName);
+  const agentIdentity = agentName || normalizeString(event.agentId);
+  const agentLaunchLabel = agentIdentity ? `Agente ${agentIdentity}` : "Sottoagente";
   const childSessionKey = normalizeString(event.childSessionKey);
   const requesterSessionKey = normalizeString(ctx?.requesterSessionKey);
   const runId = normalizeString(event.runId);
@@ -42,6 +45,9 @@ export function buildNoticeMessage(config, event, ctx, route) {
   let message = renderTemplate(template, {
     agent,
     agentId: normalizeString(event.agentId),
+    agentName,
+    agentIdentity,
+    agentLaunchLabel,
     label: normalizeString(event.label),
     mode: normalizeString(event.mode),
     runId,

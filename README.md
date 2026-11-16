@@ -41,7 +41,10 @@ openclaw plugins install git:github.com/coccoinomane/openclaw-plugin-agent-notif
 `message` is a small template. Supported placeholders:
 
 - `{agent}`: `label` when present, otherwise `agentId`.
-- `{agentId}`
+- `{agentId}`: the child agent ID, from the event or its session key.
+- `{agentName}`: the configured agent name (falling back to `identity.name`).
+- `{agentIdentity}`: configured name, then agent ID, or empty if neither is available.
+- `{agentLaunchLabel}`: `Agente {agentIdentity}` when an identity is available; otherwise `Sottoagente`. The task title remains separate in `{label}` or the legacy `{agent}` placeholder.
 - `{label}`
 - `{mode}`: `run` or `session`.
 - `{runId}` / `{shortRunId}`
@@ -58,7 +61,7 @@ Example:
 
 ```json
 {
-  "message": "🦞 Sottoagente avviato: `{agent}`\nModello: `{resolvedModel}` · modalità: `{mode}` · run: `{shortRunId}`"
+  "message": "🦞 {agentLaunchLabel} avviato: `{agent}`\nModello: `{resolvedModel}` · modalità: `{mode}` · run: `{shortRunId}`"
 }
 ```
 
